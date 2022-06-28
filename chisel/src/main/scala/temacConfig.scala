@@ -164,7 +164,7 @@ class TemacConfig (csrAddress: AddressSet, beatBytes: Int) extends LazyModule()(
       RegField(8, divider, RegFieldDesc(name = "divider", desc = "MDIO clock divider")), // 0x14
       RegField(3, speed, RegFieldDesc(name = "speed", desc = "MAC Ethernet speed")), // 0x18
       RegField(1, fullDuplex, RegFieldDesc(name = "fullDuplex", desc = "Full duplex bus")), // 0x1C
-      RegField(16, packetSize, RegFieldDesc(name = "fullDuplex", desc = "Full duplex bus")), // 0x20
+      RegField(16, packetSize, RegFieldDesc(name = "packetSize", desc = "Packet size")), // 0x20
       RegField(5, txHwmark, RegFieldDesc(name = "txHwmark", desc = "txHwmark")), // 0x24
       RegField(5, txLwmark, RegFieldDesc(name = "txLwmark", desc = "txLwmark")), // 0x28
       RegField(1, pauseFrameSendEn, RegFieldDesc(name = "pauseFrameSendEn", desc = "pauseFrameSendEn")), // 0x2C
