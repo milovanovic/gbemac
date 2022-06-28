@@ -10,7 +10,7 @@ This repository contains a Chisel generator used to instantiate a run-time confi
 |    PHY address of the ethernet transceiver device     |                                0x00                               |             5            |
 |  Address of the register inside the tranceiver device |                                0x04                               |             5            |
 |    Data to be written into the transceiver register   |                                0x08                               |            16            |
-|         Write into the treanceiver register           |                                0x0C                               |             1            |
+|    Write into the specified transceiver register      |                                0x0C                               |             1            |
 |   No preamble for the MDIO interface transactions     |                                0x10                               |             1            |
 |      MDC clock divider (freq = 5MHz/divider)          |                                0x14                               |             8            |
 |      Ethernet speed (should equal 4 for gigabit)      |                                0x18                               |             3            |
