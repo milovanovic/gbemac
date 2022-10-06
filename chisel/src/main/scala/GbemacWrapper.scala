@@ -33,7 +33,8 @@ class GbEMAC extends BlackBox {
         val rgmii_rxd = Input(UInt(4.W))
         val rgmii_rx_ctl = Input(Bool())
         val rgmii_rxc = Input(Bool())
-        val mdio = Input(Bool())
+        //val mdio = Input(Bool())
+        val mdio = Analog(1.W)
         val mdc = Output(Bool())
         
         val start_tcp = Input(Bool())
@@ -99,14 +100,15 @@ class GbemacWrapperIO () extends Bundle {
     val rgmii_rxd = Input(UInt(4.W))
     val rgmii_rx_ctl = Input(Bool())
     val rgmii_rxc = Input(Bool())
-    val mdio = Input(Bool())
+    //val mdio = Input(Bool())
+    val mdio = Analog(1.W)
     val mdc = Output(Bool())
 }
 
 
 class GbemacWrapper (csrAddressGbemac: AddressSet, beatBytes: Int) extends LazyModule()(Parameters.empty){ //[T <: Data : Real: BinaryRepresentation] 
 
-  lazy val io = Wire(new GbemacWrapperIO)
+  
   
   val configBlock = LazyModule(new TemacConfig(csrAddressGbemac, beatBytes){
     def makeIO2(): TemacConfigIO = {
@@ -128,6 +130,7 @@ class GbemacWrapper (csrAddressGbemac: AddressSet, beatBytes: Int) extends LazyM
   configBlock.mem.get := mem.get
   
   lazy val module = new LazyModuleImp(this) {
+    val io = IO(new GbemacWrapperIO)
     
     val gbemac = Module(new GbEMAC())
     
@@ -144,7 +147,8 @@ class GbemacWrapper (csrAddressGbemac: AddressSet, beatBytes: Int) extends LazyM
     gbemac.io.rgmii_rxd := io.rgmii_rxd
     gbemac.io.rgmii_rx_ctl := io.rgmii_rx_ctl
     gbemac.io.rgmii_rxc := io.rgmii_rxc
-    gbemac.io.mdio := io.mdio
+    //gbemac.io.mdio := io.mdio
+    gbemac.io.mdio <> io.mdio
     io.mdc := gbemac.io.mdc
     
     gbemac.io.tx_streaming_data := streamNode.get.in(0)._1.bits.data
@@ -210,14 +214,14 @@ class GbemacWrapperBlock (
 ) (implicit p: Parameters)
   extends GbemacWrapper(csrAddress, beatBytes) {
     
-    def makeIO2(): GbemacWrapperIO = {
-    val io2: GbemacWrapperIO = IO(io.cloneType)
-    io2.suggestName("ioGbemac")
-    io2 <> io
-    io2
-  }
+//     def makeIO2(): GbemacWrapperIO = {
+//     val io2: GbemacWrapperIO = IO(io.cloneType)
+//     io2.suggestName("ioGbemac")
+//     io2 <> io
+//     io2
+//   }
   
-  val ioGbemac = InModuleBody { makeIO2() }
+//   val ioGbemac = InModuleBody { makeIO2() }
   
   def standaloneParams = AXI4BundleParameters(addrBits = 32, dataBits = 32, idBits = 1)
     val ioMem = mem.map { m => {

@@ -1138,7 +1138,7 @@ module packet_creation_tcp (
         end    
     end
     
-    assign streaming_input_valid = fin_gen_reg ? !fin_gen_eop : tx_streaming_valid;
+    assign streaming_input_valid = fin_gen_reg ? !fin_gen_eop : tx_streaming_valid && tx_streaming_ready;
     assign streaming_input_data = fin_gen_reg ? 1'b0 : tx_streaming_data;
     assign streaming_input_last = tx_streaming_last;
   

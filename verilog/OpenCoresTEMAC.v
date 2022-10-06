@@ -265,10 +265,10 @@ always @(posedge Clk_user) begin
     if(Reset)
         slave_last_reg <= 1'b0;
     else
-        slave_last_reg <= s_axis_tlast && Tx_mac_wa;
+        slave_last_reg <= s_axis_tlast && Tx_mac_wa && Tx_mac_wr;
 end 
 
-assign Tx_mac_eop = (s_axis_tlast && Tx_mac_wa) && !slave_last_reg;
+assign Tx_mac_eop = (s_axis_tlast && Tx_mac_wa && Tx_mac_wr) && !slave_last_reg;
 
 always @(posedge Clk_user) begin
     if(Reset) begin
