@@ -25,7 +25,7 @@ module topModule(
     input wire clk,
     input wire glbl_rst,
     //input wire start,
-    output        phy_resetn,
+    /*output        phy_resetn,
     output [3:0]  rgmii_txd,
     output        rgmii_tx_ctl,
     output        rgmii_txc,
@@ -33,8 +33,20 @@ module topModule(
     input         rgmii_rx_ctl,
     input         rgmii_rxc,
     inout         mdio,
-    output        mdc
-    
+    output        mdc*/
+    input eth_col,
+    input eth_crs,
+    output eth_mdc,
+    inout eth_mdio,
+    output eth_ref_clk,
+    output eth_rstn,
+    input eth_rx_clk,
+    input eth_rx_dv,
+    input [3:0] eth_rxd,
+    input eth_rxerr,
+    input eth_tx_clk,
+    output eth_tx_en,
+    output [3:0] eth_txd
     );
 
 wire m_axi_awready;
@@ -87,63 +99,19 @@ wire gmii_rx_dv;
 wire gmii_rx_er;
 wire gmii_rx_clk;
 
-wire clk125, clk125_90, clk5;
+wire clk125, clk125_90, clk5, clk25;
 
 wire tx_streaming_valid;
 wire tx_streaming_ready;
 wire tx_streaming_last;
 wire [31:0] tx_streaming_data;
 
-reg [31:0] stream_data_reg;
+wire rx_streaming_valid;
+wire rx_streaming_ready;
+wire rx_streaming_last;
+wire [31:0] rx_streaming_data;
 
-wire [4:0]  txHwmark;
-wire [4:0]  txLwmark;
-wire        pauseFrameSendEn;
-wire [15:0] pauseQuantaSet;
-wire        macTxAddEn;
-wire        fullDuplex;
-wire [3:0]  maxRetry;
-wire [5:0]  ifgSet;
-wire [7:0]  macTxAddPromData;
-wire [2:0]  macTxAddPromAdd;
-wire        macTxAddPromWr;
-wire        txPauseEn;
-wire        xOffCpu;
-wire        xOnCpu;
-wire        macRxAddChkEn;
-wire [7:0]  macRxAddPromData;
-wire [2:0]  macRxAddPromAdd;
-wire        macRxAddPromWr;
-wire        broadcastFilterEn;
-wire [15:0] broadcastBucketDepth;
-wire [15:0] broadcastBucketInterval;
-wire        rxAppendCrc;
-wire [4:0]  rxHwmark;
-wire [4:0]  rxLwmark;
-wire        crcCheckEn;
-wire [5:0]  rxIfgSet;
-wire [15:0] rxMaxLength;
-wire [6:0]  rxMinLength;
-wire [5:0]  cpuRdAddr;
-wire        cpuRdApply;
-wire        lineLoopEn;
-wire [2:0]  speed;
-wire [7:0]  divider;
-wire [15:0] ctrlData;
-wire [4:0]  rgAd;
-wire [4:0]  fiAd;
-wire        writeCtrlData;
-wire        noPreamble;
-wire [15:0] packetSize;
-wire [47:0] srcMac;
-wire [31:0] srcIp;
-wire [15:0] srcPort;
-wire [47:0] dstMac;
-wire [31:0] dstIp;
-wire [15:0] dstPort;
-wire ctrlStart;
-wire ctrlStop;
-wire ctrlRst;
+reg [31:0] stream_data_reg;
 
 
 jtag_axi_0 jtag2axi (
@@ -189,34 +157,37 @@ jtag_axi_0 jtag2axi (
   .m_axi_rready(m_axi_rready)    // output wire m_axi_rready
 );
 
-  clk_wiz_0 clkWiz
-   (
+clk_wiz_0 clkWiz
+(
     // Clock out ports
     .clk_out1(clk125),     // output clk_out1
     .clk_out2(clk125_90),     // output clk_out2
     .clk_out3(clk5),     // output clk_out3
+    .clk_out4(clk25),     // output clk_out4
     // Status and control signals
     .reset(glbl_rst), // input reset
-   // Clock in ports
+    // Clock in ports
     .clk_in1(clk)
-    );      // input clk_in1
+);      // input clk_in1
 
 
-GbemacWrapperBlock GbemacWrapper(
+NCOWithGbemac NCOGbEMAC(
   .clock(clk),
   .reset(glbl_rst),
   .io_clk125(clk125),
   .io_clk125_90(clk125_90),
   .io_clk5(clk5),
-  .io_phy_resetn(phy_resetn),
-  .io_rgmii_txd(rgmii_txd),
-  .io_rgmii_tx_ctl(rgmii_tx_ctl),
-  .io_rgmii_txc(rgmii_txc),
-  .io_rgmii_rxd(rgmii_rxd),
-  .io_rgmii_rx_ctl(rgmii_rx_ctl),
-  .io_rgmii_rxc(rgmii_rxc),
-  .io_mdio(mdio),
-  .io_mdc(mdc),
+  .io_eth_col(eth_col),
+  .io_eth_crs(eth_crs),
+  .io_eth_rx_clk(eth_rx_clk),
+  .io_eth_rx_dv(eth_rx_dv),
+  .io_eth_rxd(eth_rxd),
+  .io_eth_rxerr(eth_rxerr),
+  .io_eth_tx_clk(eth_tx_clk),
+  .io_eth_tx_en(eth_tx_en),
+  .io_eth_txd(eth_txd),
+  .io_eth_mdio(eth_mdio),
+  .io_eth_mdc(eth_mdc),
   .ioMem_0_aw_ready(m_axi_awready),
   .ioMem_0_aw_valid(m_axi_awvalid),
   .ioMem_0_aw_bits_id(m_axi_awid),
@@ -253,49 +224,11 @@ GbemacWrapperBlock GbemacWrapper(
   .ioMem_0_r_bits_id(m_axi_rid),
   .ioMem_0_r_bits_data(m_axi_rdata),
   .ioMem_0_r_bits_resp(m_axi_rresp),
-  .ioMem_0_r_bits_last(m_axi_rlast),
-  .in_0_ready(tx_streaming_ready),
-  .in_0_valid(tx_streaming_valid),
-  .in_0_bits_data(tx_streaming_data),
-  .in_0_bits_last(tx_streaming_last)
+  .ioMem_0_r_bits_last(m_axi_rlast)
 );
 
 
-
-
-
-
-reg [15:0] pause_counter;
-reg [4:0] valid_counter;
-
-assign tx_streaming_valid = (((pause_counter == 1'b0) || (pause_counter == 16'd2048)) && (valid_counter == 5'b11111)) ? tx_streaming_ready : 1'b0;
-assign tx_streaming_data = stream_data_reg;
-
-
-always @(posedge clk) begin
-    if(glbl_rst)
-        pause_counter <= 1'b0;
-    else if(((stream_data_reg == 32'h00001C55) || (stream_data_reg == 32'h00001C56)) && (pause_counter < 16'd2048))
-        pause_counter <= pause_counter + 1'b1;
-    else if(((stream_data_reg == 32'h00001C88) || (stream_data_reg == 32'h00001C89)) && (pause_counter < 16'd2048))
-        pause_counter <= pause_counter + 1'b1;
-    else if(pause_counter >= 16'd2048)
-        pause_counter <= 1'b0;
-end
-
-
-always @(posedge clk) begin
-    if(glbl_rst)
-        stream_data_reg <= 1'b0;
-    else if(tx_streaming_valid && ((pause_counter == 1'b0) || (pause_counter == 16'd2048)))
-        stream_data_reg <= stream_data_reg + 1'b1;
-end
-
-always @(posedge clk) begin
-    if(glbl_rst)
-        valid_counter <= 1'b0;
-    else 
-        valid_counter <= valid_counter + 1'b1;
-end
+assign eth_ref_clk = clk25;
+assign eth_rstn = 1'b1;
   
 endmodule

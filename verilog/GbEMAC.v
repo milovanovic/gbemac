@@ -32,7 +32,12 @@ module GbEMAC (
     input tx_streaming_last,
     output tx_streaming_ready, //fifo buffer for data streaming, checksum is calculated after xx bytes have arrived, then all those bytes are sent as a packet
     
-    output        phy_resetn,
+    output [31:0] rx_streaming_data,
+    output rx_streaming_valid,
+    output rx_streaming_last,
+    input rx_streaming_ready,
+    
+    /*output        phy_resetn,
     output [3:0]  rgmii_txd,
     output        rgmii_tx_ctl,
     output        rgmii_txc,
@@ -40,11 +45,19 @@ module GbEMAC (
     input         rgmii_rx_ctl,
     input         rgmii_rxc,
     inout         mdio,
-    output        mdc,
+    output        mdc,*/
+    input eth_col,
+    input eth_crs,
+    output eth_mdc,
+    inout eth_mdio,
+    input eth_rx_clk,
+    input eth_rx_dv,
+    input [3:0] eth_rxd,
+    input eth_rxerr,
+    input eth_tx_clk,
+    output eth_tx_en,
+    output [3:0] eth_txd,
     
-    input start_tcp,
-    input fin_gen,
-
     input [4:0]  txHwmark,
     input [4:0]  txLwmark,
     input        pauseFrameSendEn,
@@ -117,8 +130,12 @@ wire rx_last;
 
 wire gtxClk;
 
+wire [15:0] ctrlData_fsm;
+wire [4:0]  rgAd_fsm;
+wire writeCtrlData_fsm;
 
-gmii_to_rgmii_xilinx gmii2rgmii(
+
+/*gmii_to_rgmii_xilinx gmii2rgmii(
         
     .reset_n(!reset),
     
@@ -140,13 +157,13 @@ gmii_to_rgmii_xilinx gmii2rgmii(
     .rgmii_rxd(rgmii_rxd),
     .rgmii_rx_ctl(rgmii_rx_ctl),
     .rgmii_rxc(rgmii_rxc) //,
-    );
+    );*/
     
-assign mdio = mdoEn ? mdo: 1'bz;
-assign phy_resetn = 1'b1;
+assign eth_mdio = mdoEn ? mdo: 1'bz;
+//assign phy_resetn = 1'b1;
 
 
-packet_creation_tcp protocol_ctrl (
+packet_creation_udp protocol_ctrl (
     .clk(clk),
     .reset(reset),
     .slave_data(rx_data),
@@ -157,9 +174,6 @@ packet_creation_tcp protocol_ctrl (
     .master_valid(tx_valid),
     .master_ready(tx_ready),
     .master_last(tx_last),
-    
-    .start_tcp(start_tcp),
-    .fin_gen(fin_gen),
     
     .srcMac(srcMac),
     .srcIp(srcIp),
@@ -172,7 +186,12 @@ packet_creation_tcp protocol_ctrl (
     .tx_streaming_data(tx_streaming_data),
     .tx_streaming_valid(tx_streaming_valid),
     .tx_streaming_last(tx_streaming_last),
-    .tx_streaming_ready(tx_streaming_ready)
+    .tx_streaming_ready(tx_streaming_ready),
+    
+    .rx_streaming_data(rx_streaming_data),
+    .rx_streaming_valid(rx_streaming_valid),
+    .rx_streaming_last(rx_streaming_last),
+    .rx_streaming_ready(rx_streaming_ready)
     );
     
 OpenCoresTEMAC temac(
@@ -192,7 +211,7 @@ OpenCoresTEMAC temac(
     .m_axis_tdata(rx_data),
     .m_axis_tlast(rx_last),        
                     //Phy interface         
-    .Gtx_clk(gtxClk),//used only in GMII mode
+    /*.Gtx_clk(gtxClk),//used only in GMII mode
     .Rx_clk(gmii_rx_clk),
     .Tx_clk(1'b0),//used only in MII mode
     .Tx_er(gmii_tx_er),
@@ -208,6 +227,23 @@ OpenCoresTEMAC temac(
     .MdoEn(mdoEn),              // MII Management Data Output Enable
     .Mdi(mdi),
     .Mdc(mdc),                     // MII Management Data Clock
+    */
+    .Gtx_clk(gtxClk),//used only in GMII mode
+    .Rx_clk(eth_rx_clk),
+    .Tx_clk(eth_tx_clk),//used only in MII mode
+    .Tx_er(),
+    .Tx_en(eth_tx_en),
+    .Txd(eth_txd),
+    .Rx_er(eth_rxerr),
+    .Rx_dv(eth_rx_dv),
+    .Rxd({4'b0, eth_rxd}),
+    .Crs(eth_crs),
+    .Col(eth_col),
+                    //mdx
+    .Mdo(mdo),                // MII Management Data Output
+    .MdoEn(mdoEn),              // MII Management Data Output Enable
+    .Mdi(mdi),
+    .Mdc(eth_mdc), 
     
     .txHwmark(txHwmark),
     .txLwmark(txLwmark),
@@ -242,14 +278,26 @@ OpenCoresTEMAC temac(
     .lineLoopEn(lineLoopEn),
     .speed(speed),
     .divider(divider),
-    .ctrlData(ctrlData),
-    .rgAd(rgAd),
+    //.ctrlData(ctrlData),
+    .ctrlData(ctrlData_fsm),
+    //.rgAd(rgAd),
+    .rgAd(rgAd_fsm),
     .fiAd(fiAd),
-    .writeCtrlData(writeCtrlData),
+    //.writeCtrlData(writeCtrlData),
+    .writeCtrlData(writeCtrlData_fsm),
     .noPreamble(noPreamble),
     .packetSize(packetSize)
 
 );
+
+phy_chip_conf_fsm phy_conf(
+    .clk(clk),
+    .reset(reset),
+    .ctrlData(ctrlData_fsm),
+    .rgAd(rgAd_fsm),
+    .writeCtrlData(writeCtrlData_fsm)
+    
+    );
 
 
 endmodule

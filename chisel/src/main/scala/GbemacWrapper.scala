@@ -26,19 +26,25 @@ class GbEMAC extends BlackBox {
         val tx_streaming_last = Input(Bool())
         val tx_streaming_ready = Output(Bool())
         
-        val phy_resetn = Output(Bool())
-        val rgmii_txd = Output(UInt(4.W))
-        val rgmii_tx_ctl = Output(Bool())
-        val rgmii_txc = Output(Bool())
-        val rgmii_rxd = Input(UInt(4.W))
-        val rgmii_rx_ctl = Input(Bool())
-        val rgmii_rxc = Input(Bool())
-        //val mdio = Input(Bool())
-        val mdio = Analog(1.W)
-        val mdc = Output(Bool())
+        val rx_streaming_data = Output(UInt(32.W))
+        val rx_streaming_valid = Output(Bool())
+        val rx_streaming_last = Output(Bool())
+        val rx_streaming_ready = Input(Bool())
         
-        val start_tcp = Input(Bool())
-        val fin_gen = Input(Bool())
+        val eth_col = Input(Bool())
+        val eth_crs = Input(Bool())
+        val eth_rx_clk = Input(Bool())
+        val eth_rx_dv = Input(Bool())
+        val eth_rxd = Input(UInt(4.W))
+        val eth_rxerr = Input(Bool())
+        val eth_tx_clk = Input(Bool())
+        val eth_tx_en = Output(Bool())
+        val eth_txd = Output(UInt(4.W))
+        val eth_mdio = Analog(1.W)
+        val eth_mdc = Output(Bool())
+        
+        //val start_tcp = Input(Bool())
+        //val fin_gen = Input(Bool())
         
         val txHwmark = Input(UInt(5.W))
         val txLwmark = Input(UInt(5.W))
@@ -93,24 +99,39 @@ class GbemacWrapperIO () extends Bundle {
     val clk125 = Input(Clock())
     val clk125_90 = Input(Clock())
     val clk5 = Input(Clock())
-    val phy_resetn = Output(Bool())
-    val rgmii_txd = Output(UInt(4.W))
-    val rgmii_tx_ctl = Output(Bool())
-    val rgmii_txc = Output(Bool())
-    val rgmii_rxd = Input(UInt(4.W))
-    val rgmii_rx_ctl = Input(Bool())
-    val rgmii_rxc = Input(Bool())
-    //val mdio = Input(Bool())
-    val mdio = Analog(1.W)
-    val mdc = Output(Bool())
+    val eth_col = Input(Bool())
+    val eth_crs = Input(Bool())
+    val eth_rx_clk = Input(Bool())
+    val eth_rx_dv = Input(Bool())
+    val eth_rxd = Input(UInt(4.W))
+    val eth_rxerr = Input(Bool())
+    val eth_tx_clk = Input(Bool())
+    val eth_tx_en = Output(Bool())
+    val eth_txd = Output(UInt(4.W))
+    val eth_mdio = Analog(1.W)
+    val eth_mdc = Output(Bool())
 }
 
 
-class GbemacWrapper (csrAddressGbemac: AddressSet, beatBytes: Int) extends LazyModule()(Parameters.empty){ //[T <: Data : Real: BinaryRepresentation] 
+case class GbEMACConfigParams (
+  phyAddr: Int = 1,
+  srcMacHigh: Int = 1187,
+  srcMacLow: Int = 1193046,
+  srcIp: Long = 3232243233L,
+  srcPort: Int = 10199,
+  dstMacHigh: Int = 4239478,
+  dstMacLow: Int = 10778898,
+  dstIp: Long = 3232243998L,
+  dstPort: Int = 4098
+) {
+}
 
+
+class GbemacWrapper (params: GbEMACConfigParams, csrAddressGbemac: AddressSet, beatBytes: Int) extends LazyModule()(Parameters.empty){ //[T <: Data : Real: BinaryRepresentation] 
+
+  //lazy val io = Wire(new GbemacWrapperIO)
   
-  
-  val configBlock = LazyModule(new TemacConfig(csrAddressGbemac, beatBytes){
+  val configBlock = LazyModule(new TemacConfig(params, csrAddressGbemac, beatBytes){
     def makeIO2(): TemacConfigIO = {
       val io2: TemacConfigIO = IO(io.cloneType)
       io2.suggestName("ioReg")
@@ -124,12 +145,14 @@ class GbemacWrapper (csrAddressGbemac: AddressSet, beatBytes: Int) extends LazyM
   //val mem = Some(AXI4RegisterNode(address = csrAddressGbemac, beatBytes = beatBytes))
   val mem = Some(AXI4IdentityNode())
   
-  val streamNode = Some(AXI4StreamSlaveNode(AXI4StreamSlaveParameters()))
+  val slaveNode = Some(AXI4StreamSlaveNode(AXI4StreamSlaveParameters()))
+  val masterNode = Some(AXI4StreamMasterNode(Seq(AXI4StreamMasterPortParameters(Seq(AXI4StreamMasterParameters("masterNode", n = beatBytes))))))
   
   //mem.get := configBlock.mem.get
   configBlock.mem.get := mem.get
   
   lazy val module = new LazyModuleImp(this) {
+    
     val io = IO(new GbemacWrapperIO)
     
     val gbemac = Module(new GbEMAC())
@@ -138,26 +161,33 @@ class GbemacWrapper (csrAddressGbemac: AddressSet, beatBytes: Int) extends LazyM
     gbemac.io.clk125 := io.clk125
     gbemac.io.clk125_90 := io.clk125_90
     gbemac.io.clk5 := io.clk5
-    gbemac.io.reset := configBlock.ioReg.ctrlRst
+    //gbemac.io.reset := configBlock.ioReg.ctrlRst
+    gbemac.io.reset := reset
     
-    io.phy_resetn := gbemac.io.phy_resetn
-    io.rgmii_txd := gbemac.io.rgmii_txd
-    io.rgmii_tx_ctl := gbemac.io.rgmii_tx_ctl
-    io.rgmii_txc := gbemac.io.rgmii_txc
-    gbemac.io.rgmii_rxd := io.rgmii_rxd
-    gbemac.io.rgmii_rx_ctl := io.rgmii_rx_ctl
-    gbemac.io.rgmii_rxc := io.rgmii_rxc
-    //gbemac.io.mdio := io.mdio
-    gbemac.io.mdio <> io.mdio
-    io.mdc := gbemac.io.mdc
+    io.eth_txd := gbemac.io.eth_txd
+    io.eth_tx_en := gbemac.io.eth_tx_en
+    gbemac.io.eth_rxd := io.eth_rxd
+    gbemac.io.eth_rx_dv := io.eth_rx_dv
+    gbemac.io.eth_rxerr := io.eth_rxerr
+    gbemac.io.eth_col:= io.eth_col
+    gbemac.io.eth_crs := io.eth_crs
+    gbemac.io.eth_rx_clk:= io.eth_rx_clk
+    gbemac.io.eth_tx_clk := io.eth_tx_clk
+    gbemac.io.eth_mdio <> io.eth_mdio
+    io.eth_mdc := gbemac.io.eth_mdc
     
-    gbemac.io.tx_streaming_data := streamNode.get.in(0)._1.bits.data
-    gbemac.io.tx_streaming_valid := streamNode.get.in(0)._1.valid
-    gbemac.io.tx_streaming_last := streamNode.get.in(0)._1.bits.last
-    streamNode.get.in(0)._1.ready := gbemac.io.tx_streaming_ready
+    gbemac.io.tx_streaming_data := slaveNode.get.in(0)._1.bits.data
+    gbemac.io.tx_streaming_valid := slaveNode.get.in(0)._1.valid
+    gbemac.io.tx_streaming_last := slaveNode.get.in(0)._1.bits.last
+    slaveNode.get.in(0)._1.ready := gbemac.io.tx_streaming_ready
     
-    gbemac.io.start_tcp := configBlock.ioReg.ctrlStart
-    gbemac.io.fin_gen := configBlock.ioReg.ctrlStop
+    masterNode.get.out(0)._1.bits.data := gbemac.io.rx_streaming_data
+    masterNode.get.out(0)._1.valid := gbemac.io.rx_streaming_valid
+    masterNode.get.out(0)._1.bits.last := gbemac.io.rx_streaming_last
+    gbemac.io.rx_streaming_ready := masterNode.get.out(0)._1.ready
+    
+    //gbemac.io.start_tcp := configBlock.ioReg.ctrlStart
+    //gbemac.io.fin_gen := configBlock.ioReg.ctrlStop
     gbemac.io.txHwmark := configBlock.ioReg.txHwmark
     gbemac.io.txLwmark := configBlock.ioReg.txLwmark
     gbemac.io.pauseFrameSendEn := configBlock.ioReg.pauseFrameSendEn
@@ -209,10 +239,11 @@ class GbemacWrapper (csrAddressGbemac: AddressSet, beatBytes: Int) extends LazyM
 
 
 class GbemacWrapperBlock (
+  params: GbEMACConfigParams,
   csrAddress: AddressSet,
   beatBytes: Int
 ) (implicit p: Parameters)
-  extends GbemacWrapper(csrAddress, beatBytes) {
+  extends GbemacWrapper(params, csrAddress, beatBytes) {
     
 //     def makeIO2(): GbemacWrapperIO = {
 //     val io2: GbemacWrapperIO = IO(io.cloneType)
@@ -220,8 +251,8 @@ class GbemacWrapperBlock (
 //     io2 <> io
 //     io2
 //   }
-  
-//   val ioGbemac = InModuleBody { makeIO2() }
+//  
+//  val ioGbemac = InModuleBody { makeIO2() }
   
   def standaloneParams = AXI4BundleParameters(addrBits = 32, dataBits = 32, idBits = 1)
     val ioMem = mem.map { m => {
@@ -234,20 +265,26 @@ class GbemacWrapperBlock (
       val ioMem = InModuleBody { ioMemNode.makeIO() }
       ioMem
     }}
+    
     val ioInNode = BundleBridgeSource(() => new AXI4StreamBundle(AXI4StreamBundleParameters(n = 4)))
-    streamNode.get := BundleBridgeToAXI4Stream(AXI4StreamMasterParameters(n = 4)) := ioInNode
+    slaveNode.get := BundleBridgeToAXI4Stream(AXI4StreamMasterParameters(n = 4)) := ioInNode
     val in = InModuleBody { ioInNode.makeIO() }
+    
+    val ioOutNode = BundleBridgeSink[AXI4StreamBundle]()
+    ioOutNode := AXI4StreamToBundleBridge(AXI4StreamSlaveParameters()) := masterNode.get
+    val out = InModuleBody { ioOutNode.makeIO() }
     
 }
 
 object GbemacWrapperBlockApp extends App
 {
-
+  
+  val params = GbEMACConfigParams()
   implicit val p: Parameters = Parameters.empty
-  val gbemacModule = LazyModule(new GbemacWrapperBlock(AddressSet(0x20000000, 0xFF), 4) { // with AXI4Block {
+  val gbemacModule = LazyModule(new GbemacWrapperBlock(params, AddressSet(0x20000000, 0xFF), 4) { // with AXI4Block {
     override def standaloneParams = AXI4BundleParameters(addrBits = 32, dataBits = 32, idBits = 1)
   })
-  chisel3.Driver.execute(args, ()=> gbemacModule.module)
+  chisel3.Driver.execute(Array("--target-dir", "verilog/GbemacWrapper"), ()=> gbemacModule.module)
 }
 
 
