@@ -32,6 +32,11 @@ module GbEMAC (
     input tx_streaming_last,
     output tx_streaming_ready, //fifo buffer for data streaming, checksum is calculated after xx bytes have arrived, then all those bytes are sent as a packet
     
+    output [31:0] rx_streaming_data,
+    output rx_streaming_valid,
+    output rx_streaming_last,
+    input rx_streaming_ready,
+    
     output        phy_resetn,
     output [3:0]  rgmii_txd,
     output        rgmii_tx_ctl,
@@ -42,9 +47,6 @@ module GbEMAC (
     inout         mdio,
     output        mdc,
     
-    input start_tcp,
-    input fin_gen,
-
     input [4:0]  txHwmark,
     input [4:0]  txLwmark,
     input        pauseFrameSendEn,
@@ -146,7 +148,7 @@ assign mdio = mdoEn ? mdo: 1'bz;
 assign phy_resetn = 1'b1;
 
 
-packet_creation_tcp protocol_ctrl (
+packet_creation_udp protocol_ctrl (
     .clk(clk),
     .reset(reset),
     .slave_data(rx_data),
@@ -157,9 +159,6 @@ packet_creation_tcp protocol_ctrl (
     .master_valid(tx_valid),
     .master_ready(tx_ready),
     .master_last(tx_last),
-    
-    .start_tcp(start_tcp),
-    .fin_gen(fin_gen),
     
     .srcMac(srcMac),
     .srcIp(srcIp),
@@ -172,7 +171,12 @@ packet_creation_tcp protocol_ctrl (
     .tx_streaming_data(tx_streaming_data),
     .tx_streaming_valid(tx_streaming_valid),
     .tx_streaming_last(tx_streaming_last),
-    .tx_streaming_ready(tx_streaming_ready)
+    .tx_streaming_ready(tx_streaming_ready),
+    
+    .rx_streaming_data(rx_streaming_data),
+    .rx_streaming_valid(rx_streaming_valid),
+    .rx_streaming_last(rx_streaming_last),
+    .rx_streaming_ready(rx_streaming_ready)
     );
     
 OpenCoresTEMAC temac(

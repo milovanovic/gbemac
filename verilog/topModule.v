@@ -24,7 +24,7 @@ module topModule(
     
     input wire clk,
     input wire glbl_rst,
-    //input wire start,
+    input wire start,
     output        phy_resetn,
     output [3:0]  rgmii_txd,
     output        rgmii_tx_ctl,
@@ -93,6 +93,11 @@ wire tx_streaming_valid;
 wire tx_streaming_ready;
 wire tx_streaming_last;
 wire [31:0] tx_streaming_data;
+
+wire rx_streaming_valid;
+wire rx_streaming_ready;
+wire rx_streaming_last;
+wire [31:0] rx_streaming_data;
 
 reg [31:0] stream_data_reg;
 
@@ -257,7 +262,11 @@ GbemacWrapperBlock GbemacWrapper(
   .in_0_ready(tx_streaming_ready),
   .in_0_valid(tx_streaming_valid),
   .in_0_bits_data(tx_streaming_data),
-  .in_0_bits_last(tx_streaming_last)
+  .in_0_bits_last(tx_streaming_last),
+  .out_0_ready(rx_streaming_ready),
+  .out_0_valid(rx_streaming_valid),
+  .out_0_bits_data(rx_streaming_data),
+  .out_0_bits_last(rx_streaming_last)
 );
 
 
@@ -265,21 +274,35 @@ GbemacWrapperBlock GbemacWrapper(
 
 
 
-reg [15:0] pause_counter;
+reg [31:0] pause_counter;
 reg [4:0] valid_counter;
+reg [7:0] valid_counter2;
 
-assign tx_streaming_valid = (((pause_counter == 1'b0) || (pause_counter == 16'd2048)) && (valid_counter == 5'b11111)) ? tx_streaming_ready : 1'b0;
+//assign tx_streaming_valid = (((pause_counter == 1'b0) || (pause_counter == 16'd2048)) && (valid_counter == 5'b11111)) ? tx_streaming_ready && start : 1'b0;
+//assign tx_streaming_valid = ((pause_counter == 1'b0) || (pause_counter == 16'd2048)) ? tx_streaming_ready && (start || (valid_counter2 != 0)) : 1'b0;
+//assign tx_streaming_valid = ((pause_counter == 1'b0) || (pause_counter == 32'd2048)) ? tx_streaming_ready && (start || (valid_counter2 != 0)) : 1'b0;
+assign tx_streaming_valid = ((pause_counter == 1'b0) || (pause_counter == 32'd1000000)) ? tx_streaming_ready && (start || (valid_counter2 != 0)) : 1'b0;
 assign tx_streaming_data = stream_data_reg;
 
+assign rx_streaming_ready = 1'b1;
 
+
+/*always @(posedge clk) begin
+    if(glbl_rst)
+        pause_counter <= 1'b0;
+    else if(((stream_data_reg == 32'h00001C55) || (stream_data_reg == 32'h00001C56)) && (pause_counter < 32'd2048))
+        pause_counter <= pause_counter + 1'b1;
+    else if(((stream_data_reg == 32'h00001C88) || (stream_data_reg == 32'h00001C89)) && (pause_counter < 32'd2048))
+        pause_counter <= pause_counter + 1'b1;
+    else if(pause_counter >= 32'd2048)
+        pause_counter <= 1'b0;
+end*/
 always @(posedge clk) begin
     if(glbl_rst)
         pause_counter <= 1'b0;
-    else if(((stream_data_reg == 32'h00001C55) || (stream_data_reg == 32'h00001C56)) && (pause_counter < 16'd2048))
+    else if(((stream_data_reg[7:0] == 8'hFF) || (stream_data_reg[7:0] == 8'h00)) && (pause_counter < 32'd1000000))
         pause_counter <= pause_counter + 1'b1;
-    else if(((stream_data_reg == 32'h00001C88) || (stream_data_reg == 32'h00001C89)) && (pause_counter < 16'd2048))
-        pause_counter <= pause_counter + 1'b1;
-    else if(pause_counter >= 16'd2048)
+    else if(pause_counter >= 32'd1000000)
         pause_counter <= 1'b0;
 end
 
@@ -287,7 +310,8 @@ end
 always @(posedge clk) begin
     if(glbl_rst)
         stream_data_reg <= 1'b0;
-    else if(tx_streaming_valid && ((pause_counter == 1'b0) || (pause_counter == 16'd2048)))
+    //else if(tx_streaming_valid && ((pause_counter == 1'b0) || (pause_counter == 16'd2048)))
+    else if(tx_streaming_valid && ((pause_counter == 1'b0) || (pause_counter == 32'd1000000)))
         stream_data_reg <= stream_data_reg + 1'b1;
 end
 
@@ -296,6 +320,13 @@ always @(posedge clk) begin
         valid_counter <= 1'b0;
     else 
         valid_counter <= valid_counter + 1'b1;
+end
+
+always @(posedge clk) begin
+    if(glbl_rst)
+        valid_counter2 <= 1'b0;
+    else if(tx_streaming_valid)
+        valid_counter2 <= valid_counter2 + 1'b1;
 end
   
 endmodule

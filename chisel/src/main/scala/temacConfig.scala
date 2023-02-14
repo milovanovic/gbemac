@@ -87,9 +87,11 @@ class TemacConfigIO () extends Bundle {
   val dstIp = Output(UInt(32.W))
   val dstPort = Output(UInt(16.W))
 
-  val ctrlStart = Output(Bool())
-  val ctrlStop = Output(Bool())  
-  val ctrlRst = Output(Bool())
+  //val ctrlStart = Output(Bool())
+  //val ctrlStop = Output(Bool())  
+  //val ctrlRst = Output(Bool())
+  
+  //val clock = Input(Clock())
 }
 
 class TemacConfig (csrAddress: AddressSet, beatBytes: Int) extends LazyModule()(Parameters.empty){ //[T <: Data : Real: BinaryRepresentation] 
@@ -111,8 +113,8 @@ class TemacConfig (csrAddress: AddressSet, beatBytes: Int) extends LazyModule()(
     val speed = RegInit(UInt(3.W), 4.U)
     val fullDuplex = RegInit(Bool(), true.B)
     val packetSize = RegInit(UInt(16.W), 1024.U)
-    val txHwmark = RegInit(UInt(5.W), 31.U)
-    val txLwmark = RegInit(UInt(5.W), 28.U)
+    val txHwmark = RegInit(UInt(5.W), 9.U)
+    val txLwmark = RegInit(UInt(5.W), 8.U)
     val pauseFrameSendEn = RegInit(Bool(), false.B)
     val pauseQuantaSet = RegInit(UInt(16.W), 0.U)
     val ifgSet = RegInit(UInt(6.W), 12.U)
@@ -151,9 +153,9 @@ class TemacConfig (csrAddress: AddressSet, beatBytes: Int) extends LazyModule()(
     val dstIp = RegInit(UInt(32.W), 0.U)
     val dstPort = RegInit(UInt(16.W), 0.U)
 
-    val ctrlStart = RegInit(Bool(), false.B)
-    val ctrlStop = RegInit(Bool(), false.B)    
-    val ctrlRst = RegInit(Bool(), false.B)
+    //val ctrlStart = RegInit(Bool(), false.B)
+    //val ctrlStop = RegInit(Bool(), false.B)    
+    //val ctrlRst = RegInit(Bool(), false.B)
     
     val fields = Seq(
       RegField(5, fiAd, RegFieldDesc(name = "fiAd", desc = "MDIO PHY address")), // 0x00
@@ -203,11 +205,11 @@ class TemacConfig (csrAddress: AddressSet, beatBytes: Int) extends LazyModule()(
       RegField(24, dstMacHigh, RegFieldDesc(name = "dstMacHigh", desc = "Destination MAC address higher bytes")), // 0xAC
       RegField(24, dstMacLow, RegFieldDesc(name = "dstMacLow", desc = "Destination MAC address lower bytes")), // 0xB0
       RegField(32, dstIp, RegFieldDesc(name = "dstIp", desc = "Destination IP address")), // 0xB4
-      RegField(16, dstPort, RegFieldDesc(name = "dstPort", desc = "Destination port number")), // 0xB8
+      RegField(16, dstPort, RegFieldDesc(name = "dstPort", desc = "Destination port number"))//, // 0xB8
 
-      RegField(1, ctrlStart, RegFieldDesc(name = "ctrlStart", desc = "Control start TCP connection")), // 0xBC
-      RegField(1, ctrlStop, RegFieldDesc(name = "ctrlStop", desc = "Control stop TCP connection")), // 0xC0      
-      RegField(1, ctrlRst, RegFieldDesc(name = "ctrlRst", desc = "Control reset")) // 0xC4 
+      //RegField(1, ctrlStart, RegFieldDesc(name = "ctrlStart", desc = "Control start TCP connection")), // 0xBC
+      //RegField(1, ctrlStop, RegFieldDesc(name = "ctrlStop", desc = "Control stop TCP connection")), // 0xC0      
+      //RegField(1, ctrlRst, RegFieldDesc(name = "ctrlRst", desc = "Control reset")) // 0xC4 
     )
     mem.get.regmap(fields.zipWithIndex.map({ case (f, i) => i * beatBytes -> Seq(f)}): _*)
     
@@ -258,9 +260,11 @@ class TemacConfig (csrAddress: AddressSet, beatBytes: Int) extends LazyModule()(
     io.dstIp := dstIp
     io.dstPort := dstPort
 
-    io.ctrlStart := ctrlStart
-    io.ctrlStop := ctrlStop    
-    io.ctrlRst := ctrlRst
+    //io.ctrlStart := ctrlStart
+    //io.ctrlStop := ctrlStop    
+    //io.ctrlRst := ctrlRst
+    
+    //io.clock := clock
   }
 
 }
