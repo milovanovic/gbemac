@@ -2,7 +2,7 @@ Gigabit Ethernet Media Access Controller
 ========================================================
 
 ## Overview
-This repository contains a Chisel generator used to instantiate a run-time configurable Gigabit Ethernet Media Access Controller (GbEMAC) written in [Chisel](http://www.chisel-lang.org) and Verilog HDLs. The Ethernet Controller is used for transferring data from an FPGA-based board with an Ethernet port to a PC, using TCP IPv4 protocol for data transfers. For the implementation of some parts of this module, open-source OpenCores' [10_100_1000 Mbps tri-mode ethernet MAC](https://opencores.org/projects/ethernet_tri_mode) block is used, modified and upgraded. More information about the GbEMAC module can be found among the proceedings of [2021 IcETRAN international conference](https://www.etran.rs/2022/zbornik/ICETRAN-22_radovi/038-ELI1.1.pdf).
+This repository contains a Chisel generator used to instantiate a run-time configurable Gigabit Ethernet Media Access Controller (GbEMAC) written in [Chisel](http://www.chisel-lang.org) and Verilog HDLs. The Ethernet Controller is used for transferring data from an FPGA-based board with an Ethernet port to a PC, using UDP IPv4 protocol for data transfers. For the implementation of some parts of this module, open-source OpenCores' [10_100_1000 Mbps tri-mode ethernet MAC](https://opencores.org/projects/ethernet_tri_mode) block is used, modified and upgraded. More information about the GbEMAC module can be found among the proceedings of [2021 IcETRAN international conference](https://www.etran.rs/2022/zbornik/ICETRAN-22_radovi/038-ELI1.1.pdf).
 
 ### GbEMAC Implementation
 
@@ -32,15 +32,10 @@ For the design to work properly, a set of appropriate values should be written i
 |        Lower bytes of destination MAC address         |                                0xB0                               |            24            |
 |                 Destination IP address                |                                0xB4                               |            32            |
 |                 Destination port number               |                                0xB8                               |            16            |
-|               Establish TCP connection                |                                0xBC                               |             1            |
-|               Terminate TCP connection                |                                0xC0                               |             1            |
-|                        Reset                          |                                0xC4                               |             1            |
 
 All the source files are stored either in the `verilog` or the `chisel` directory. The `chisel` directory contains a Chisel project used to generate the already mentioned memory-mapped configuration registers and the wrapper module that can be used for possible integration in further Chisel projects. The `verilog` directory contains all the other source files used for the implementation of the GbEMAC module, including a simple example of its instantiation in a larger system.
 
 The `scripts` directory contains various scripts that allows the GbEMAC module to operate correctly. The files in this directory are the following:
-* `scripts/rx_tcp.py` - An example script used for simple data receiving on the PC side, using the Python socket library.
+* `scripts/rx_udp.py` - An example script used for simple data receiving on the PC side, using the Python socket library.
 * `scripts/vivado_components.tcl` - A script used to instantiate Vivado IP blocks used in the design for the clock signal generation and the AXI4 bus access using JTAG.
 * `scripts/temacConfig.tcl` - A script used to configure the GbEMAC module by writing appropriate values into the memory mapped configuration registers, and to configure the external Ethernet transceiver chip.
-* `scripts/gbemacStart.tcl` - A script used to initiate the TCP connection when there is a TCP server running on the PC connected to the board through Ethernet. It is achieved by writing the appropriate value into the memory-mapped control register.
-* `scripts/gbemacStop.tcl` - A script used to terminate the TCP connection when there is an existing connection with the TCP server running on the PC connected to the board through Ethernet. It is achieved by writing the appropriate value into the memory-mapped control register.
